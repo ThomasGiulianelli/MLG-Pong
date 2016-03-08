@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+    <audio id="ball-wall">
+        <source src="ball-wall.mp3">
+    </audio>
+    <audio id="ball-paddle">
+        <source src="pling8.mp3">
+    </audio>
+    <audio id="airhorn">
+        <source src="airhorn.mp3">
+    </audio>
+    <audio id="triple">
+        <source src="OH_BABY-A_TRIPLE.mp3">
+    </audio>
+    <audio id="MLG-airhorn">
+        <source src="MLG-Airhorn.mp3">
+    </audio>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Pong</title>
+        <style>
+            *{padding: 0; margin: 0;}
+            canvas{background:#000; display: block; margin: 0 auto; }
+        </style>
+    </head>
+    <body>
+        <canvas  id="myCanvas" width="720" height="600"></canvas>
+        <script>
+            var canvas = document.getElementById("myCanvas");
+            var ctx = canvas.getContext("2d");
+            var x = canvas.width/2;
+            var y = canvas.height/3;
+            var dx = 8;
+            var dy = 3;
+            var ballRadius = 10;
+            var leftPaddleHeight = 100;
+            var leftPaddleWidth = 20;
+            var leftPaddleX = 2 * leftPaddleWidth;
+            var leftPaddleY = canvas.height/2 - leftPaddleHeight/2;
+            var rightPaddleHeight = 100;
+            var rightPaddleWidth = 20;
+            var rightPaddleX = canvas.width - (3 * rightPaddleWidth);
+            var rightPaddleY = canvas.height/2 - rightPaddleHeight/2;
+            var rectY = 15; //y coordinate of each rectangle in the dividing line
+            var i = 0; //used in for loop
+            var wPressed = false;
+            var sPressed = false;
+            var upPressed = false;
+            var downPressed = false;
+            var leftScore = 0;
+            var rightScore = 0;
+            var hitRightPaddle = false; //stores whether or not the ball has hit the paddle
+            var hitLeftPaddle = false; //stores whether or not the ball has hit the paddle
+            var wallBounceSFX = document.getElementById('ball-wall'); //used to play sfx when the ball bounces off a wall
+            var paddleBounceSFX = document.getElementById('ball-paddle'); //used to play sfx when the ball bounces off a paddle
+            var goalSFX = document.getElementById('airhorn'); //used to play sfx when a player scores
+            var tripleSFX = document.getElementById('triple'); //used to play sfx when a player scores 3 points
+            var winSFX = document.getElementById('MLG-airhorn'); //used to play sfx when a player wins
+            var leftStartX = 0 - leftPaddleWidth; //starting x position of the left paddle before it tweens into its final position
+            var rightStartX = canvas.width; //starting x position of the right paddle before it tweens into its final position
+            var paddleTweeningDone = false;
+            
+            document.addEventListener("keydown", keyDownHandler, false);
+            document.addEventListener("keyup", keyUpHandler, false);
+            
+            function keyDownHandler(e) {
+                if(e.keyCode == 38)
+                    upPressed = true;
+                else if(e.keyCode == 40)
+                    downPressed = true;
+                else if(e.keyCode == 87)
+                    wPressed = true;
+                else if(e.keyCode == 83)
+                    sPressed = true;
+            }
+            function keyUpHandler(e) {
+                if(e.keyCode == 38)
+                    upPressed = false;
+                else if(e.keyCode == 40)
+                    downPressed = false;
+                else if(e.keyCode == 87)
+                    wPressed = false;
+                else if(e.keyCode == 83)
+                    sPressed = false;
+            }
+            
+            function drawBall() {
+                ctx.beginPath();
+                ctx.arc(x, y, ballRadius, 0, Math.PI*2);
+                if (hitLeftPaddle == true)
+                    ctx.fillStyle = "magenta";
+                else if (hitRightPaddle == true)
+                    ctx.fillStyle = "cyan";
+                else
+                    ctx.fillStyle = "white";
+                ctx.fill();
+                ctx.closePath();
+            }
+            function drawLeftPaddle() {
+                if (paddleTweeningDone == false){
+                    ctx.beginPath();
+                    ctx.rect(leftStartX, leftPaddleY, leftPaddleWidth, leftPaddleHeight);
+                    ctx.fillStyle = "magenta";
+                    ctx.fill();
+                    ctx.closePath();
+                    leftStartX += (leftPaddleX - leftStartX) * .1; //tweening
+                }
+                else {
+                    ctx.beginPath();
+                    ctx.rect(leftPaddleX, leftPaddleY, leftPaddleWidth, leftPaddleHeight);
+                    ctx.fillStyle = "magenta";
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+            function drawRightPaddle() {
+                if (paddleTweeningDone == false){
+                    ctx.beginPath();
+                    ctx.rect(rightStartX, rightPaddleY, rightPaddleWidth, rightPaddleHeight);
+                    ctx.fillStyle = "cyan";
+                    ctx.fill();
+                    ctx.closePath();
+                    rightStartX += (rightPaddleX - rightStartX) * .1; //tweening
+                }
+                else {
+                    ctx.beginPath();
+                    ctx.rect(rightPaddleX, rightPaddleY, rightPaddleWidth, rightPaddleHeight);
+                    ctx.fillStyle = "cyan";
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+            function drawDividor() {
+                for (i; i < 600; i+=30) {
+                    ctx.beginPath();
+                    ctx.rect(canvas.width/2 - 2, rectY + i, 4, 15);
+                    ctx.fillStyle = "rgb("+
+                      Math.floor(Math.random()*256)+","+
+                      Math.floor(Math.random()*256)+","+
+                      Math.floor(Math.random()*256)+")";
+                    ctx.fill();
+                    ctx.closePath();
+                }
+                i = 0; //resets i so that the dotted line is printed in the same location each frame
+            }
+            function drawLeftScore() {
+                ctx.font = "40px Arial";
+                ctx.fillStyle = "magenta";
+                ctx.fillText(leftScore, canvas.width/2 - 100, 45);
+            }
+            function drawRightScore() {
+                ctx.font = "40px Arial";
+                ctx.fillStyle = "cyan";
+                ctx.fillText(rightScore, canvas.width/2 + 80, 45);
+            }
+            function goalDetection() { 
+                //detects when left player scores
+                if(x >= canvas.width){
+                    leftScore++;
+                    x = canvas.width/2; //reset ball position
+                    y = canvas.height/3; //reset ball position
+                    dy = 3; //reset ball y-speed
+                    dx = -dx; //makes the ball start off in the direction of the player who last scored
+                    hitRightPaddle = false; //resets ball color
+                    hitLeftPaddle = false; //resets ball color
+                    
+                    if (leftScore == 3)
+                        tripleSFX.play(); //plays a sound effect
+                    else if (leftScore == 10)
+                        winSFX.play(); //plays a sound effect
+                    else {
+                         goalSFX.play(); //plays sound effect
+                         goalSFX.volume = 0.9;
+                    }
+                }
+                //detects when right player scores
+                if(x <= 0){
+                    rightScore++;
+                    x = canvas.width/2; //reset ball position
+                    y = canvas.height/3; //reset ball position
+                    dy = 3; //reset ball y-speed
+                    dx = -dx; //makes the ball start off in the direction of the player who last scored
+                    hitRightPaddle = false; //resets ball color
+                    hitLeftPaddle = false; //resets ball color
+                    
+                    if (rightScore == 3)
+                        tripleSFX.play(); //plays a sound effect
+                    else if (rightScore == 10)
+                        winSFX.play(); //plays a sound effect
+                    else {
+                        goalSFX.play(); //plays sound effect
+                        goalSFX.volume = 0.9;
+                    }
+                }
+            }
+            function collisionDetection() { //detects when the ball hits a wall or paddle and reacts accordingly
+                
+                //makes ball bounce off the top and bottom walls
+                if(y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
+                    dy = -dy;
+                    wallBounceSFX.play();//plays sound effect
+                }
+                
+                else if(x + dx >= rightPaddleX - ballRadius && x + dx <= rightPaddleX) { //when ball reaches right paddle x-axis
+                    
+                    //The following commented out code is my attempt at a better method of detecting where the ball hits the paddle, but 
+                    //it doesn't work as I want it to.
+                    /*
+                    if (y >= rightPaddleY && y <= rightPaddleY + rightPaddleHeight/2){ //when ball hits top half of paddle
+                        dx = -dx;
+                        if (dy > 0)
+                            dy = (dy * (rightPaddleHeight/2 - y)/100);
+                        if (dy < 0)
+                            dy = -(dy * (rightPaddleHeight/2 - y)/100);
+                    }
+                    if (y >= rightPaddleY + rightPaddleHeight/2 && y <= rightPaddleY + rightPaddleHeight){ //when ball hits bottom half of paddle
+                        dx = -dx;
+                        if (dy > 0)
+                            dy = -(dy * (rightPaddleHeight/2 - y)/100);
+                        if (dy < 0)
+                            dy = (dy * (rightPaddleHeight/2 - y)/100);
+                    } */
+                    if(y >= rightPaddleY && y <= rightPaddleY + rightPaddleHeight/5) { //when ball hits top 1/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = true; 
+                        hitLeftPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                    } 
+                    if(y >= rightPaddleY + rightPaddleHeight/5 && y <= (rightPaddleY + 2 * rightPaddleHeight/5)) { //when ball hits top 2/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = true; 
+                        hitLeftPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (rightPaddleY + 2 * rightPaddleHeight/5) && y <= (rightPaddleY + 3 * rightPaddleHeight/5)) { //when ball hits center of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = true; 
+                        hitLeftPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * (1/2);
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * (1/2);
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (rightPaddleY + 3 * rightPaddleHeight/5) && y <= (rightPaddleY + 4 * rightPaddleHeight/5)) { //when ball hits bottom 2/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = true; 
+                        hitLeftPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (rightPaddleY + 4 * rightPaddleHeight/5) && y <= rightPaddleY + rightPaddleHeight) { //when ball hits bottom 1/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = true; 
+                        hitLeftPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                    }
+                }
+                
+                else if(x + dx <= leftPaddleX + leftPaddleWidth + ballRadius && x + dx >= leftPaddleX) { //when ball reaches left paddle x-axis
+                    if(y >= leftPaddleY && y <= leftPaddleY + leftPaddleHeight/5) { //when ball hits top 1/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitLeftPaddle = true; 
+                        hitRightPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                    } 
+                    if(y >= leftPaddleY + leftPaddleHeight/5 && y <= (leftPaddleY + 2 * leftPaddleHeight/5)) { //when ball hits top 2/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitLeftPaddle = true;
+                        hitRightPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (leftPaddleY + 2 * leftPaddleHeight/5) && y <= (leftPaddleY + 3 * leftPaddleHeight/5)) { //when ball hits center of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitLeftPaddle = true;
+                        hitRightPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * (1/2);
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = dy * (1/2);
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (leftPaddleY + 3 * leftPaddleHeight/5) && y <= (leftPaddleY + 4 * leftPaddleHeight/5)) { //when ball hits bottom 2/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitLeftPaddle = true;
+                        hitRightPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 2;
+                            dx = -dx;
+                        }
+                    }
+                    if(y >= (leftPaddleY + 4 * leftPaddleHeight/5) && y <= leftPaddleY + leftPaddleHeight) { //when ball hits bottom 1/5 of paddle
+                        paddleBounceSFX.play();//plays sound effect
+                        hitLeftPaddle = true;
+                        hitRightPaddle = false;
+                        if(dy > 0) {
+                            dy = 3; //reset dy speed
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                        else {
+                            dy = -3; //reset dy speed
+                            dy = -dy;
+                            dy = dy * 3;
+                            dx = -dx;
+                        }
+                    }
+                }
+            }
+            
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawDividor();
+                drawBall();
+                drawLeftPaddle();
+                drawRightPaddle();
+                collisionDetection();
+                goalDetection();
+                drawLeftScore();
+                drawRightScore();
+                
+                //determines a winner once a player reaches 10 points
+                if(leftScore == 10){
+                    alert("Left Player Wins!");
+                    document.location.reload();
+                }
+                if(rightScore == 10){
+                    alert("Right Player Wins!");
+                    document.location.reload();
+                }
+                
+                //defines paddle movement
+                if(upPressed && rightPaddleY > 0)
+                    rightPaddleY -= 10;
+                if(downPressed && rightPaddleY < canvas.height - rightPaddleHeight)
+                    rightPaddleY += 10;
+                if(wPressed && leftPaddleY > 0)
+                    leftPaddleY -= 10;
+                if(sPressed && leftPaddleY < canvas.height - leftPaddleHeight)
+                    leftPaddleY += 10;
+                
+                //determines when tweening of paddles is done so that the game can start
+                if (leftStartX >= leftPaddleX - 1)
+                    paddleTweeningDone = true;
+                if (paddleTweeningDone == true){
+                    x += dx;//moves the ball
+                    y += dy;//moves the ball
+                }
+                
+                requestAnimationFrame(draw);//causes the draw function to call itself repeatedly
+            }
+            draw();
+        </script>
+    </body>
+        <iframe width="100%" height="150" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/2605805&amp;auto_play=true&amp;hide_related=true&amp;show_comments=false&amp;show_user=true&amp;show_reposts=false&amp;visual=false">
+    </iframe>
+</html>
