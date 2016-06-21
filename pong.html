@@ -18,7 +18,7 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Pong</title>
+        <title>MLG Pong</title>
         <style>
             *{padding: 0; margin: 0;}
             canvas{background:#000; display: block; margin: 0 auto; }
@@ -31,8 +31,8 @@
             var ctx = canvas.getContext("2d");
             var x = canvas.width/2;
             var y = canvas.height/3;
-            var dx = 8;
-            var dy = 3;
+            var dx = 8; //ball's change in x position 
+            var dy = 3; //ball's change in y position
             var ballRadius = 10;
             var leftPaddleHeight = 100;
             var leftPaddleWidth = 20;
@@ -194,8 +194,59 @@
                     }
                 }
             }
+
+            function binSearch(k, A, low, high) { // search where the ball hits the paddle
+                if (low > high) {
+                    return -1;
+                } else {
+                    rv = 0;
+                    middle = parseInt((low+high)/2);
+                    next = middle + 1;
+                    if (next >= A.length) {
+                        next = A.length - 1;
+                    }
+                    if ( k >= A[middle] && k < A[next] ) {
+                        rv = middle;
+                    } else if ( k < A[middle] ) {
+                        rv = binSearch( k, A, low, middle-1);
+                    } else { // k > A[middle]
+                        rv = binSearch( k, A, middle+1, high );
+                    }
+                    return rv;
+                }
+            }
+
+
             function collisionDetection() { //detects when the ball hits a wall or paddle and reacts accordingly
                 
+                var rightPaddlePos = [ rightPaddleY,
+                    rightPaddleY + rightPaddleHeight/11, 
+                    rightPaddleY + 2*rightPaddleHeight/11, 
+                    rightPaddleY + 3*rightPaddleHeight/11,
+                    rightPaddleY + 4*rightPaddleHeight/11,
+                    rightPaddleY + 5*rightPaddleHeight/11,
+                    rightPaddleY + 6*rightPaddleHeight/11,
+                    rightPaddleY + 7*rightPaddleHeight/11,
+                    rightPaddleY + 8*rightPaddleHeight/11,
+                    rightPaddleY + 9*rightPaddleHeight/11,
+                    rightPaddleY + 10*rightPaddleHeight/11,
+                    rightPaddleY + rightPaddleHeight];
+
+                var leftPaddlePos = [ leftPaddleY,
+                    leftPaddleY + leftPaddleHeight/11, 
+                    leftPaddleY + 2*leftPaddleHeight/11, 
+                    leftPaddleY + 3*leftPaddleHeight/11,
+                    leftPaddleY + 4*leftPaddleHeight/11,
+                    leftPaddleY + 5*leftPaddleHeight/11,
+                    leftPaddleY + 6*leftPaddleHeight/11,
+                    leftPaddleY + 7*leftPaddleHeight/11,
+                    leftPaddleY + 8*leftPaddleHeight/11,
+                    leftPaddleY + 9*leftPaddleHeight/11,
+                    leftPaddleY + 10*leftPaddleHeight/11,
+                    leftPaddleY + leftPaddleHeight];
+
+                var speedMultiplier = [ 4.5, 4, 3, 2.5, 1.5, 1/2, 1/2, 1.5, 2.5, 3, 4, 4.5];
+
                 //makes ball bounce off the top and bottom walls
                 if(y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
                     dy = -dy;
@@ -204,182 +255,54 @@
                 
                 else if(x + dx >= rightPaddleX - ballRadius && x + dx <= rightPaddleX) { //when ball reaches right paddle x-axis
                     
-                    //The following commented out code is my attempt at a better method of detecting where the ball hits the paddle, but 
-                    //it doesn't work as I want it to.
-                    /*
-                    if (y >= rightPaddleY && y <= rightPaddleY + rightPaddleHeight/2){ //when ball hits top half of paddle
-                        dx = -dx;
-                        if (dy > 0)
-                            dy = (dy * (rightPaddleHeight/2 - y)/100);
-                        if (dy < 0)
-                            dy = -(dy * (rightPaddleHeight/2 - y)/100);
-                    }
-                    if (y >= rightPaddleY + rightPaddleHeight/2 && y <= rightPaddleY + rightPaddleHeight){ //when ball hits bottom half of paddle
-                        dx = -dx;
-                        if (dy > 0)
-                            dy = -(dy * (rightPaddleHeight/2 - y)/100);
-                        if (dy < 0)
-                            dy = (dy * (rightPaddleHeight/2 - y)/100);
-                    } */
-                    if(y >= rightPaddleY && y <= rightPaddleY + rightPaddleHeight/5) { //when ball hits top 1/5 of paddle
+                    r = binSearch( y, rightPaddlePos, 0, rightPaddlePos.length);
+                    if (r != -1 ) {
+                        speedx = speedMultiplier[r];
                         paddleBounceSFX.play();//plays sound effect
                         hitRightPaddle = true; 
                         hitLeftPaddle = false;
                         if(dy > 0) {
                             dy = 3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 3;
+                            dy = dy * speedx;
                             dx = -dx;
+                            if(r < 5){
+                                dy = -dy;
+                            }
                         }
                         else {
                             dy = -3; //reset dy speed
-                            dy = dy * 3;
+                            dy = dy * speedx;
                             dx = -dx;
-                        }
-                    } 
-                    if(y >= rightPaddleY + rightPaddleHeight/5 && y <= (rightPaddleY + 2 * rightPaddleHeight/5)) { //when ball hits top 2/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitRightPaddle = true; 
-                        hitLeftPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                    }
-                    if(y >= (rightPaddleY + 2 * rightPaddleHeight/5) && y <= (rightPaddleY + 3 * rightPaddleHeight/5)) { //when ball hits center of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitRightPaddle = true; 
-                        hitLeftPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * (1/2);
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = dy * (1/2);
-                            dx = -dx;
-                        }
-                    }
-                    if(y >= (rightPaddleY + 3 * rightPaddleHeight/5) && y <= (rightPaddleY + 4 * rightPaddleHeight/5)) { //when ball hits bottom 2/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitRightPaddle = true; 
-                        hitLeftPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                    }
-                    if(y >= (rightPaddleY + 4 * rightPaddleHeight/5) && y <= rightPaddleY + rightPaddleHeight) { //when ball hits bottom 1/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitRightPaddle = true; 
-                        hitLeftPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * 3;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 3;
-                            dx = -dx;
+                            if(r > 5){
+                                dy = -dy;
+                            }
                         }
                     }
                 }
                 
                 else if(x + dx <= leftPaddleX + leftPaddleWidth + ballRadius && x + dx >= leftPaddleX) { //when ball reaches left paddle x-axis
-                    if(y >= leftPaddleY && y <= leftPaddleY + leftPaddleHeight/5) { //when ball hits top 1/5 of paddle
+
+                    r = binSearch( y, leftPaddlePos, 0, leftPaddlePos.length);
+                    if (r != -1 ) {
+                        speedx = speedMultiplier[r];
                         paddleBounceSFX.play();//plays sound effect
-                        hitLeftPaddle = true; 
-                        hitRightPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 3;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = dy * 3;
-                            dx = -dx;
-                        }
-                    } 
-                    if(y >= leftPaddleY + leftPaddleHeight/5 && y <= (leftPaddleY + 2 * leftPaddleHeight/5)) { //when ball hits top 2/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
+                        hitRightPaddle = false; 
                         hitLeftPaddle = true;
-                        hitRightPaddle = false;
                         if(dy > 0) {
                             dy = 3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 2;
+                            dy = dy * speedx;
                             dx = -dx;
+                            if(r < 5){
+                                dy = -dy;
+                            }
                         }
                         else {
                             dy = -3; //reset dy speed
-                            dy = dy * 2;
+                            dy = dy * speedx;
                             dx = -dx;
-                        }
-                    }
-                    if(y >= (leftPaddleY + 2 * leftPaddleHeight/5) && y <= (leftPaddleY + 3 * leftPaddleHeight/5)) { //when ball hits center of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitLeftPaddle = true;
-                        hitRightPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * (1/2);
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = dy * (1/2);
-                            dx = -dx;
-                        }
-                    }
-                    if(y >= (leftPaddleY + 3 * leftPaddleHeight/5) && y <= (leftPaddleY + 4 * leftPaddleHeight/5)) { //when ball hits bottom 2/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitLeftPaddle = true;
-                        hitRightPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 2;
-                            dx = -dx;
-                        }
-                    }
-                    if(y >= (leftPaddleY + 4 * leftPaddleHeight/5) && y <= leftPaddleY + leftPaddleHeight) { //when ball hits bottom 1/5 of paddle
-                        paddleBounceSFX.play();//plays sound effect
-                        hitLeftPaddle = true;
-                        hitRightPaddle = false;
-                        if(dy > 0) {
-                            dy = 3; //reset dy speed
-                            dy = dy * 3;
-                            dx = -dx;
-                        }
-                        else {
-                            dy = -3; //reset dy speed
-                            dy = -dy;
-                            dy = dy * 3;
-                            dx = -dx;
+                            if(r > 5){
+                                dy = -dy;
+                            }
                         }
                     }
                 }
