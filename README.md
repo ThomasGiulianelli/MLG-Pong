@@ -1,5 +1,5 @@
 # MLG-Pong
-####Author: Thomas Giulianelli
+#### Author: Thomas Giulianelli
 
 A clone of the classic game, but with added blasts of color and MLG memes.
 Written in Javascript and wrapped in HTML.
